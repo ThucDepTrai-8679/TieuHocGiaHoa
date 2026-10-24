@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Ra Đề & Tạo Ma Trận Đề Thi Tiểu Học (Thông Tư 27)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        secondary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        accent: {
+                            50: '#fffbe1',
+                            100: '#fef3c7',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; font-size: 12pt; }
+            .page-break { page-break-before: always; }
+            .shadow-lg, .shadow-md, .shadow-sm { box-shadow: none !important; }
+            .border-2 { border-width: 1px !important; }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 text-white shadow-md sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo & App Name -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+                        <i class="fa-solid fa-graduation-cap text-2xl text-yellow-300"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg sm:text-xl tracking-wide flex items-center gap-2">
+                            EduMatrix Primary <span class="bg-yellow-400 text-slate-900 text-xs px-2 py-0.5 rounded-full font-bold">TT 27</span>
+                        </h1>
+                        <p class="text-xs text-emerald-100 hidden sm:block">Hệ thống hỗ trợ Giáo viên ra đề & ma trận thông minh</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Status & Actions -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="toggleApiKeyModal()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 border border-white/20">
+                        <i class="fa-solid fa-key text-yellow-300"></i>
+                        <span id="apiKeyBtnText">Cấu hình API Key</span>
+                    </button>
+                    <button onclick="switchTab('matrix')" id="nav-matrix" class="nav-btn bg-white text-emerald-700 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow-sm transition">
+                        <i class="fa-solid fa-table-cells mr-1"></i> 1. Ma trận đề
+                    </button>
+                    <button onclick="switchTab('review')" id="nav-review" class="nav-btn text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition">
+                        <i class="fa-solid fa-list-check mr-1"></i> 2. Duyệt câu hỏi (<span id="badge-approved-count">0</span>)
+                    </button>
+                    <button onclick="switchTab('preview')" id="nav-preview" class="nav-btn text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition">
+                        <i class="fa-solid fa-file-export mr-1"></i> 3. Xuất đề & Đáp án
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ALERT BANNER FOR API KEY / MOCK MODE -->
+        <div id="statusBanner" class="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-between shadow-sm no-print">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-amber-100 rounded-xl text-amber-600">
+                    <i class="fa-solid fa-circle-info text-xl"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm">Chế độ giả lập (Mock AI) đang hoạt động</h4>
+                    <p class="text-xs text-amber-700">Bạn có thể tạo câu hỏi thử nghiệm ngay lập tức. Nhập Google Gemini API Key để sinh câu hỏi bằng AI thật theo chương trình GDPT 2018.</p>
+                </div>
+            </div>
+            <button onclick="toggleApiKeyModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap">
+                Nhập API Key
+            </button>
+        </div>
+
+        <!-- TAB 1: MA TRẬN & CẤU HÌNH ĐỀ THI -->
+        <section id="tab-matrix" class="tab-content block space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: Config Panel -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <h2 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-emerald-600"></i>
+                            Cấu hình chung
+                        </h2>
+                        <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Bộ GD&ĐT</span>
+                    </div>
+
+                    <!-- School & Exam info -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Tên trường Tiểu học</label>
+                            <input type="text" id="schoolName" value="Trường Tiểu học Phú Lộc" class="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Kỳ kiểm tra</label>
+                                <select id="examPeriod" class="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    <option value="Kiểm tra Giữa kỳ I">Giữa Kỳ I</option>
+                                    <option value="Kiểm tra Cuối kỳ I" selected>Cuối Kỳ I</option>
+                                    <option value="Kiểm tra Giữa kỳ II">Giữa Kỳ II</option>
+                                    <option value="Kiểm tra Cuối kỳ II">Cuối Kỳ II</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Thời gian (phút)</label>
+                                <input type="number" id="examDuration" value="40" class="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Khối lớp</label>
+                                <select id="gradeSelect" onchange="onGradeOrSubjectChange()" class="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    <option value="1">Khối Lớp 1</option>
+                                    <option value="2">Khối Lớp 2</option>
+                                    <option value="3">Khối Lớp 3</option>
+                                    <option value="4">Khối Lớp 4</option>
+                                    <option value="5" selected>Khối Lớp 5</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Môn học</label>
+                                <select id="subjectSelect" onchange="onGradeOrSubjectChange()" class="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    <option value="Toán">Toán</option>
+                                    <option value="Tiếng Việt">Tiếng Việt</option>
+                                    <option value="Tin học" selected>Tin học</option>
+                                    <option value="Công nghệ">Công nghệ</option>
+                                    <option value="Tiếng Anh">Tiếng Anh</option>
+                                    <option value="Khoa học">Khoa học</option>
+                                    <option value="Lịch sử & Địa lí">Lịch sử & Địa lí</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- Topics Selector -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-bold text-slate-600">Mạch kiến thức / Chủ đề</label>
+                            <button onclick="addCustomTopic()" class="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-plus"></i> Thêm chủ đề
+                            </button>
+                        </div>
+                        <div id="topicsContainer" class="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                            <!-- Dynamic Topic Checkboxes -->
+                        </div>
+                    </div>
+
+                    <button onclick="generateAIMatrixProposal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> AI Gợi ý tỷ lệ ma trận chuẩn
+                    </button>
+                </div>
+
+                <!-- Right Column (2 cols width): Matrix Table Builder -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-6">
+                    <div>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                            <div>
+                                <h2 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                    <i class="fa-solid fa-table text-sky-600"></i>
+                                    Khung Ma Trận Đề Thi (Thông tư 27)
+                                </h2>
+                                <p class="text-xs text-slate-500">Mức 1: Nhận biết (40%) | Mức 2: Kết nối/Sắp xếp (30%) | Mức 3: Vận dụng (30%)</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-slate-500">Tổng số điểm: </span>
+                                <span id="totalPointsDisplay" class="font-extrabold text-emerald-600 text-lg">10.0</span>
+                            </div>
+                        </div>
+
+                        <!-- Matrix Table -->
+                        <div class="overflow-x-auto mt-4">
+                            <table class="w-full text-xs text-left text-slate-600 border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                                        <th class="p-2.5 font-bold">Mạch kiến thức / Chủ đề</th>
+                                        <th class="p-2.5 font-bold text-center bg-blue-50/60 text-blue-900 border-x border-slate-200">
+                                            Mức 1 (Nhận biết)
+                                        </th>
+                                        <th class="p-2.5 font-bold text-center bg-emerald-50/60 text-emerald-900 border-x border-slate-200">
+                                            Mức 2 (Thông hiểu)
+                                        </th>
+                                        <th class="p-2.5 font-bold text-center bg-amber-50/60 text-amber-900 border-x border-slate-200">
+                                            Mức 3 (Vận dụng)
+                                        </th>
+                                        <th class="p-2.5 font-bold text-center">Tổng số câu</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="matrixTableBody" class="divide-y divide-slate-200">
+                                    <!-- Dynamic Matrix Rows -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-slate-50 font-bold text-slate-800">
+                                        <td class="p-2.5">TỔNG CỘNG:</td>
+                                        <td class="p-2.5 text-center bg-blue-50/40" id="totalM1">0 TN / 0 TL</td>
+                                        <td class="p-2.5 text-center bg-emerald-50/40" id="totalM2">0 TN / 0 TL</td>
+                                        <td class="p-2.5 text-center bg-amber-50/40" id="totalM3">0 TN / 0 TL</td>
+                                        <td class="p-2.5 text-center text-emerald-700 text-sm" id="grandTotalQuestions">0 câu</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Action Button -->
+                    <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="text-xs text-slate-500 flex items-center gap-2">
+                            <i class="fa-solid fa-lightbulb text-amber-500 text-base"></i>
+                            <span>Hệ thống sẽ dùng cấu hình này để gửi yêu cầu đến Gemini AI sinh câu hỏi.</span>
+                        </div>
+                        <button onclick="startAIGenerationProcess()" class="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Sinh Đề & Câu Hỏi Tự Động bằng AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: REVIEW & EDIT QUESTIONS -->
+        <section id="tab-review" class="tab-content hidden space-y-6">
+            <!-- Review Header -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-emerald-600"></i>
+                        Duyệt & Chỉnh Sửa Dạng Câu Hỏi
+                    </h2>
+                    <p class="text-xs text-slate-500">Thầy/Cô có thể chỉnh sửa nội dung, đổi đáp án, xóa hoặc bấm "Đổi câu hỏi AI khác" nếu chưa ưng ý.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <button onclick="addNewManualQuestion()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus text-emerald-600"></i> Thêm câu hỏi thủ công
+                    </button>
+                    <button onclick="approveAllQuestions()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-check-double"></i> Chốt tất cả câu hỏi
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="aiLoadingState" class="hidden bg-white p-12 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
+                <div class="inline-block p-4 bg-emerald-50 rounded-full text-emerald-600 animate-spin">
+                    <i class="fa-solid fa-spinner text-3xl"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-base">Gemini AI đang suy nghĩ và biên soạn câu hỏi...</h3>
+                <p class="text-xs text-slate-500 max-w-md mx-auto">Hệ thống đang phân tích ma trận Thông tư 27 và tạo nội dung phù hợp cho học sinh Tiểu học.</p>
+            </div>
+
+            <!-- Questions List -->
+            <div id="questionsContainer" class="space-y-4">
+                <!-- Dynamic Question Cards -->
+            </div>
+        </section>
+
+        <!-- TAB 3: EXPORT & PREVIEW -->
+        <section id="tab-preview" class="tab-content hidden space-y-6">
+            <!-- Toolbar for Export -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
+                <div class="flex items-center gap-2">
+                    <button onclick="switchPreviewSubTab('exam')" id="subtab-exam" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <i class="fa-solid fa-file-lines mr-1"></i> Đề thi Học Sinh
+                    </button>
+                    <button onclick="switchPreviewSubTab('answers')" id="subtab-answers" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100">
+                        <i class="fa-solid fa-key mr-1"></i> Đáp án & Hướng dẫn chấm
+                    </button>
+                    <button onclick="switchPreviewSubTab('matrix')" id="subtab-matrix" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100">
+                        <i class="fa-solid fa-table mr-1"></i> Ma trận đề thi
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> In / Xuất PDF
+                    </button>
+                    <button onclick="exportToWord()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-word"></i> Xuất File Word (.doc)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Printable Document Area -->
+            <div class="bg-white p-8 sm:p-12 rounded-2xl shadow-md border border-slate-200 max-w-4xl mx-auto text-slate-900 font-serif leading-relaxed" id="printableArea">
+                <!-- PRINT SUB-TAB 1: EXAM CONTENT -->
+                <div id="preview-exam-doc" class="preview-subcontent block">
+                    <!-- Standard Primary School Exam Header -->
+                    <div class="grid grid-cols-2 gap-4 border-b-2 border-slate-800 pb-4 mb-6">
+                        <div class="text-center font-bold text-sm space-y-1">
+                            <p id="printSchoolName" class="uppercase">TRƯỜNG TIỂU HỌC PHÚ LỘC</p>
+                            <p class="text-xs">TỔ CHUYÊN MÔN KHOA HỌC</p>
+                        </div>
+                        <div class="text-center font-bold text-sm space-y-1">
+                            <p id="printExamPeriod" class="uppercase">ĐỀ KIỂM TRA CUỐI KỲ I</p>
+                            <p id="printSubjectGrade" class="text-xs font-normal">NĂM HỌC 2026 - 2027 | MÔN: TIN HỌC - LỚP 5</p>
+                            <p id="printDuration" class="text-xs font-normal italic">Thời gian làm bài: 40 phút</p>
+                        </div>
+                    </div>
+
+                    <!-- Student Info Box -->
+                    <div class="border border-slate-800 p-3 mb-6 text-xs font-sans grid grid-cols-2 gap-2 rounded">
+                        <div>Họ và tên học sinh: ....................................................</div>
+                        <div>Lớp: 5......</div>
+                        <div>Trường: ....................................................................</div>
+                        <div>SBD: ......................</div>
+                    </div>
+
+                    <!-- Score Box -->
+                    <div class="grid grid-cols-3 border border-slate-800 text-center text-xs font-sans mb-6">
+                        <div class="border-r border-slate-800 p-2">
+                            <p class="font-bold">Điểm</p>
+                            <div class="h-10"></div>
+                        </div>
+                        <div class="border-r border-slate-800 p-2">
+                            <p class="font-bold">Lời nhận xét của giáo viên</p>
+                            <div class="h-10"></div>
+                        </div>
+                        <div class="p-2">
+                            <p class="font-bold">Chữ ký GV</p>
+                            <div class="h-10"></div>
+                        </div>
+                    </div>
+
+                    <!-- Questions Area -->
+                    <div id="printExamBody" class="space-y-6 text-sm">
+                        <!-- Questions populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- PRINT SUB-TAB 2: ANSWERS CONTENT -->
+                <div id="preview-answers-doc" class="preview-subcontent hidden">
+                    <div class="text-center font-bold mb-6 space-y-1">
+                        <h3 class="text-base uppercase" id="printAnsHeader">ĐÁP ÁN VÀ HƯỚNG DẪN CHẤM KIỂM TRA</h3>
+                        <p class="text-xs font-normal" id="printAnsSub">MÔN: TIN HỌC - KHỐI LỚP 5</p>
+                    </div>
+
+                    <div id="printAnswersBody" class="space-y-4 text-sm">
+                        <!-- Answers populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- PRINT SUB-TAB 3: MATRIX TABLE -->
+                <div id="preview-matrix-doc" class="preview-subcontent hidden">
+                    <div class="text-center font-bold mb-6 space-y-1">
+                        <h3 class="text-base uppercase">MA TRẬN ĐỀ KIỂM TRA ĐÁNH GIÁ THÔNG TƯ 27</h3>
+                        <p class="text-xs font-normal" id="printMatrixSub">MÔN: TIN HỌC - LỚP 5</p>
+                    </div>
+
+                    <div id="printMatrixBody" class="text-xs">
+                        <!-- Matrix Table populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-8 no-print text-center text-xs text-slate-500">
+        <p>© 2026 EduMatrix Primary - Công cụ hỗ trợ Giáo viên Tiểu học tạo đề kiểm tra chuẩn Thông tư 27.</p>
+    </footer>
+
+    <!-- API KEY MODAL -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-key text-emerald-600"></i> Cấu hình Google Gemini API
+                </h3>
+                <button onclick="toggleApiKeyModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Nhập Gemini API Key của bạn để kết nối trực tiếp với mô hình AI (`gemini-3-flash-preview`). Nếu để trống, hệ thống sẽ tự động dùng bộ giả lập Mock AI.
+            </p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Gemini API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full text-sm p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button onclick="toggleApiKeyModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Hủy</button>
+                <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition">
+                    Lưu Cấu Hình
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATA & STATE MANAGEMENT ---
+        const DEFAULT_TOPICS = {
+            "Tin học": {
+                "1": ["Làm quen với máy tính", "Tập gõ bàn phím", "Sử dụng chuột"],
+                "2": ["Máy tính và em", "Vẽ hình cơ bản", "Xem phim và nghe nhạc"],
+                "3": ["Thông tin và máy tính", "Sử dụng Internet an toàn", "Soạn thảo văn bản đơn giản"],
+                "4": ["Thư mục và tệp", "Trình chiếu đơn giản", "Lập trình Lập trình Scratch đơn giản"],
+                "5": ["Máy tính và cộng đồng", "Mạng xã hội và Internet", "Soạn thảo văn bản nâng cao", "Thu thập và giải quyết vấn đề với Tin học"]
+            },
+            "Toán": {
+                "5": ["Số thập phân & Các phép tính", "Hình học & Đo lường", "Tỉ số phần trăm", "Giải toán có lời văn"]
+            },
+            "Tiếng Việt": {
+                "5": ["Đọc hiểu văn bản", "Luyện từ và câu", "Viết đoạn văn / Bài văn"]
+            }
+        };
+
+        let currentConfig = {
+            school: "Trường Tiểu học Phú Lộc",
+            period: "Kiểm tra Cuối kỳ I",
+            duration: 40,
+            grade: "5",
+            subject: "Tin học",
+            apiKey: ""
+        };
+
+        // Matrix state structure
+        let currentTopics = [];
+        let matrixData = {}; // topicId -> { m1_tn, m1_tl, m2_tn, m2_tl, m3_tn, m3_tl }
+        let questions = []; // Array of Question Objects
+
+        // On Page Load
+        window.onload = function() {
+            // Load saved API Key if any
+            const savedKey = localStorage.getItem('gemini_api_key') || "";
+            if(savedKey) {
+                currentConfig.apiKey = savedKey;
+                document.getElementById('apiKeyInput').value = savedKey;
+                updateApiKeyStatusUI(true);
+            }
+            onGradeOrSubjectChange();
+        };
+
+        // Grade or Subject selection change handler
+        function onGradeOrSubjectChange() {
+            currentConfig.grade = document.getElementById('gradeSelect').value;
+            currentConfig.subject = document.getElementById('subjectSelect').value;
+
+            // Update topics
+            const subjectTopics = DEFAULT_TOPICS[currentConfig.subject];
+            if(subjectTopics && subjectTopics[currentConfig.grade]) {
+                currentTopics = [...subjectTopics[currentConfig.grade]];
+            } else {
+                currentTopics = [
+                    `Chủ đề 1: Kiến thức cơ bản ${currentConfig.subject} ${currentConfig.grade}`,
+                    `Chủ đề 2: Kỹ năng ứng dụng & Thực hành`,
+                    `Chủ đề 3: Vận dụng giải quyết vấn đề`
+                ];
+            }
+            renderTopicsList();
+            initMatrixData();
+            renderMatrixTable();
+        }
+
+        // Render Topics Checkboxes
+        function renderTopicsList() {
+            const container = document.getElementById('topicsContainer');
+            container.innerHTML = '';
+            currentTopics.forEach((topic, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-slate-50 p-2 rounded-lg text-xs border border-slate-200';
+                div.innerHTML = `
+                    <span class="font-semibold text-slate-700 truncate">${topic}</span>
+                    <button onclick="removeTopic(${idx})" class="text-slate-400 hover:text-red-500 ml-2">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addCustomTopic() {
+            const name = prompt("Nhập tên mạch kiến thức / chủ đề mới:");
+            if(name && name.trim()) {
+                currentTopics.push(name.trim());
+                renderTopicsList();
+                initMatrixData();
+                renderMatrixTable();
+            }
+        }
+
+        function removeTopic(index) {
+            currentTopics.splice(index, 1);
+            renderTopicsList();
+            initMatrixData();
+            renderMatrixTable();
+        }
+
+        // Initialize matrix values
+        function initMatrixData() {
+            matrixData = {};
+            currentTopics.forEach((topic, i) => {
+                // Default reasonable values
+                matrixData[i] = {
+                    m1_tn: 2, m1_tl: 0,
+                    m2_tn: 1, m2_tl: 1,
+                    m3_tn: 0, m3_tl: 1
+                };
+            });
+        }
+
+        // Render Matrix Table Grid
+        function renderMatrixTable() {
+            const tbody = document.getElementById('matrixTableBody');
+            tbody.innerHTML = '';
+
+            let sumM1 = { tn: 0, tl: 0 };
+            let sumM2 = { tn: 0, tl: 0 };
+            let sumM3 = { tn: 0, tl: 0 };
+
+            currentTopics.forEach((topic, i) => {
+                const data = matrixData[i] || { m1_tn: 0, m1_tl: 0, m2_tn: 0, m2_tl: 0, m3_tn: 0, m3_tl: 0 };
+                
+                sumM1.tn += data.m1_tn; sumM1.tl += data.m1_tl;
+                sumM2.tn += data.m2_tn; sumM2.tl += data.m2_tl;
+                sumM3.tn += data.m3_tn; sumM3.tl += data.m3_tl;
+
+                const rowTotal = data.m1_tn + data.m1_tl + data.m2_tn + data.m2_tl + data.m3_tn + data.m3_tl;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-medium text-slate-800">${topic}</td>
+                    <!-- Mức 1 -->
+                    <td class="p-2 text-center bg-blue-50/30 border-x border-slate-200">
+                        <div class="flex items-center justify-center gap-1">
+                            <span class="text-[10px] text-slate-400">TN:</span>
+                            <input type="number" min="0" value="${data.m1_tn}" onchange="updateMatrixCell(${i}, 'm1_tn', this.value)" class="w-10 text-center p-1 rounded border border-slate-300">
+                            <span class="text-[10px] text-slate-400">TL:</span>
+                            <input type="number" min="0" value="${data.m1_tl}" onchange="updateMatrixCell(${i}, 'm1_tl', this.value)" class="w-10 text-center p-1 rounded border border-slate-300">
+                        </div>
+                    </td>
+                    <!-- Mức 2 -->
+                    <td class="p-2 text-center bg-emerald-50/30 border-x border-slate-200">
+                        <div class="flex items-center justify-center gap-1">
+                            <span class="text-[10px] text-slate-400">TN:</span>
+                            <input type="number" min="0" value="${data.m2_tn}" onchange="updateMatrixCell(${i}, 'm2_tn', this.value)" class="w-10 text-center p-1 rounded border border-slate-300">
+                            <span class="text-[10px] text-slate-400">TL:</span>
+                            <input type="number" min="0" value="${data.m2_tl}" onchange="updateMatrixCell(${i}, 'm2_tl', this.value)" class="w-10 text-center p-1 rounded border border-slate-300">
+                        </div>
+                    </td>
+                    <!-- Mức 3 -->
+                    <td class="p-2 text-center bg-amber-50/30 border-x border-slate-200">
+                        <div class="flex items-center justify-center gap-1">
+                            <span class="text-[10px] text-slate-400">TN:</span>
+                            <input type="number" min="0" value="${data.m3_tn}" onchange="updateMatrixCell(${i}, 'm3_tn', this.value)" class="w-10 text-center p-1 rounded border border-slate-300">
+                            <span class="text-[10px] text-slate-400">TL:</span>
+                            <input type="number" min="0" value="${data.m3_tl}" onchange="updateMatrixCell(${i}, 'm3_tl', this.value)" class="w-10 text-center p-1 rounded border border-slate-300">
+                        </div>
+                    </td>
+                    <!-- Total -->
+                    <td class="p-2 text-center font-bold text-slate-700">${rowTotal} câu</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Totals Footer
+            document.getElementById('totalM1').innerText = `${sumM1.tn} TN / ${sumM1.tl} TL`;
+            document.getElementById('totalM2').innerText = `${sumM2.tn} TN / ${sumM2.tl} TL`;
+            document.getElementById('totalM3').innerText = `${sumM3.tn} TN / ${sumM3.tl} TL`;
+
+            const grandTotal = sumM1.tn + sumM1.tl + sumM2.tn + sumM2.tl + sumM3.tn + sumM3.tl;
+            document.getElementById('grandTotalQuestions').innerText = `${grandTotal} câu`;
+        }
+
+        function updateMatrixCell(topicIdx, field, val) {
+            matrixData[topicIdx][field] = parseInt(val) || 0;
+            renderMatrixTable();
+        }
+
+        // Auto Proposal Matrix ratio
+        function generateAIMatrixProposal() {
+            currentTopics.forEach((_, i) => {
+                matrixData[i] = {
+                    m1_tn: 2, m1_tl: 0,
+                    m2_tn: 1, m2_tl: 1,
+                    m3_tn: 0, m3_tl: 1
+                };
+            });
+            renderMatrixTable();
+        }
+
+        // --- AI GENERATION LOGIC ---
+        async function startAIGenerationProcess() {
+            switchTab('review');
+            const loading = document.getElementById('aiLoadingState');
+            const container = document.getElementById('questionsContainer');
+            
+            loading.classList.remove('hidden');
+            container.innerHTML = '';
+            questions = [];
+
+            // Compile specs needed from matrix
+            const requests = [];
+            currentTopics.forEach((topic, i) => {
+                const data = matrixData[i];
+                if(!data) return;
+
+                // M1
+                for(let k=0; k<data.m1_tn; k++) requests.push({ topic, level: "Mức 1", type: "Trắc nghiệm" });
+                for(let k=0; k<data.m1_tl; k++) requests.push({ topic, level: "Mức 1", type: "Tự luận" });
+                // M2
+                for(let k=0; k<data.m2_tn; k++) requests.push({ topic, level: "Mức 2", type: "Trắc nghiệm" });
+                for(let k=0; k<data.m2_tl; k++) requests.push({ topic, level: "Mức 2", type: "Tự luận" });
+                // M3
+                for(let k=0; k<data.m3_tn; k++) requests.push({ topic, level: "Mức 3", type: "Trắc nghiệm" });
+                for(let k=0; k<data.m3_tl; k++) requests.push({ topic, level: "Mức 3", type: "Tự luận" });
+            });
+
+            if(requests.length === 0) {
+                loading.classList.add('hidden');
+                alert("Vui lòng thiết lập ít nhất 1 câu hỏi trong bảng ma trận.");
+                return;
+            }
+
+            // Generate Questions
+            if(currentConfig.apiKey) {
+                try {
+                    questions = await fetchQuestionsFromGeminiAPI(requests);
+                } catch(e) {
+                    console.error("Gemini API Error, falling back to Mock:", e);
+                    alert("Lỗi khi gọi Gemini API. Hệ thống sẽ tự động dùng Mock Generator để tạo dữ liệu mẫu.");
+                    questions = generateMockQuestions(requests);
+                }
+            } else {
+                // Simulate delay for Mock
+                await new Promise(r => setTimeout(r, 1200));
+                questions = generateMockQuestions(requests);
+            }
+
+            loading.classList.add('hidden');
+            renderQuestionsReview();
+            updateApprovedCountBadge();
+        }
+
+        // Gemini API Real Call
+        async function fetchQuestionsFromGeminiAPI(requests) {
+            const promptText = `
+Role: Bạn là chuyên gia giáo dục bậc Tiểu học tại Việt Nam.
+Nhiệm vụ: Hãy tạo danh sách gồm ${requests.length} câu hỏi kiểm tra môn ${currentConfig.subject} - Khối Lớp ${currentConfig.grade} bám sát Thông tư 27.
+
+Danh sách yêu cầu cấu trúc câu hỏi:
+${JSON.stringify(requests, null, 2)}
+
+Yêu cầu định dạng đầu ra bắt buộc là JSON ARRAY nguyên bản (chỉ duy nhất JSON, không thêm chữ ```json markdown):
+[
+  {
+    "id": 1,
+    "topic": "Tên chủ đề",
+    "level": "Mức 1",
+    "type": "Trắc nghiệm",
+    "question": "Nội dung câu hỏi?",
+    "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
+    "answer": "A. Đáp án 1",
+    "explanation": "Lời giải chi tiết hoặc đáp án cho tự luận"
+  }
+]
+Chú ý: Nếu type là 'Tự luận', để 'options' là [].
+`;
+
+            const apiKey = currentConfig.apiKey;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }]
+                })
+            });
+
+            const data = await response.json();
+            const textResp = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            
+            // Clean response to parse JSON
+            const cleaned = textResp.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleaned);
+
+            return parsed.map((q, idx) => ({
+                ...q,
+                id: idx + 1,
+                approved: true
+            }));
+        }
+
+        // Fallback Mock Generator
+        function generateMockQuestions(requests) {
+            return requests.map((req, idx) => {
+                const isTN = req.type === "Trắc nghiệm";
+                return {
+                    id: idx + 1,
+                    topic: req.topic,
+                    level: req.level,
+                    type: req.type,
+                    question: isTN 
+                        ? `[${req.topic} - ${req.level}] Máy tính hay thiết bị nào sau đây dùng để làm gì trong học tập?` 
+                        : `[${req.topic} - ${req.level}] Em hãy nêu 2 ví dụ thực tế về việc áp dụng kiến thức bài học vào đời sống hàng ngày?`,
+                    options: isTN ? [
+                        "A. Nhập dữ liệu và xử lý thông tin",
+                        "B. Chỉ dùng để xem phim hoạt hình",
+                        "C. Không mang lại lợi ích gì",
+                        "D. Dùng để thay thế hoàn toàn con người"
+                    ] : [],
+                    answer: isTN ? "A. Nhập dữ liệu và xử lý thông tin" : "Học sinh nêu được 2 ví dụ hợp lý (mỗi ý 0.5 điểm).",
+                    explanation: "Giải thích đáp án đúng theo SGKGDPT 2018.",
+                    approved: true
+                };
+            });
+        }
+
+        // Render Question Cards in Review Tab
+        function renderQuestionsReview() {
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
+
+            questions.forEach((q, idx) => {
+                const card = document.createElement('div');
+                card.className = `bg-white p-5 rounded-2xl border ${q.approved ? 'border-emerald-200 bg-emerald-50/10' : 'border-slate-200'} shadow-sm space-y-4`;
+                
+                let optionsHTML = '';
+                if(q.type === 'Trắc nghiệm' && q.options) {
+                    optionsHTML = `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                            ${q.options.map((opt, oIdx) => `
+                                <input type="text" value="${opt}" onchange="updateQuestionOption(${idx}, ${oIdx}, this.value)" class="text-xs p-2 rounded-lg border border-slate-200 focus:ring-1 focus:ring-emerald-500">
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-800 text-sm">Câu ${q.id}</span>
+                            <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">${q.type}</span>
+                            <span class="text-[11px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">${q.level}</span>
+                            <span class="text-[11px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">${q.topic}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="regenerateSingleQuestion(${idx})" title="Đổi câu hỏi AI khác" class="text-xs text-sky-600 hover:text-sky-700 font-bold bg-sky-50 px-2.5 py-1 rounded-lg">
+                                <i class="fa-solid fa-arrows-rotate"></i> Đổi AI
+                            </button>
+                            <button onclick="deleteQuestion(${idx})" title="Xóa câu này" class="text-xs text-red-600 hover:text-red-700 font-bold bg-red-50 px-2.5 py-1 rounded-lg">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Editable Content -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-1">Nội dung câu hỏi:</label>
+                            <textarea onchange="updateQuestionContent(${idx}, 'question', this.value)" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" rows="2">${q.question}</textarea>
+                        </div>
+
+                        ${optionsHTML}
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-emerald-700 mb-1">Đáp án chốt:</label>
+                                <input type="text" value="${q.answer}" onchange="updateQuestionContent(${idx}, 'answer', this.value)" class="w-full text-xs p-2 rounded-lg border border-emerald-300 bg-emerald-50/30">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Hướng dẫn chấm / Lời giải:</label>
+                                <input type="text" value="${q.explanation || ''}" onchange="updateQuestionContent(${idx}, 'explanation', this.value)" class="w-full text-xs p-2 rounded-lg border border-slate-300">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateQuestionContent(idx, field, value) {
+            questions[idx][field] = value;
+        }
+
+        function updateQuestionOption(qIdx, oIdx, value) {
+            questions[qIdx].options[oIdx] = value;
+        }
+
+        function deleteQuestion(idx) {
+            questions.splice(idx, 1);
+            // Re-index
+            questions.forEach((q, i) => q.id = i + 1);
+            renderQuestionsReview();
+            updateApprovedCountBadge();
+        }
+
+        async function regenerateSingleQuestion(idx) {
+            const old = questions[idx];
+            alert(`Đang phát lệnh AI đổi lại câu hỏi ${old.id} (${old.topic})...`);
+            
+            const singleReq = [{ topic: old.topic, level: old.level, type: old.type }];
+            let newQ;
+
+            if(currentConfig.apiKey) {
+                try {
+                    const res = await fetchQuestionsFromGeminiAPI(singleReq);
+                    newQ = res[0];
+                } catch(e) {
+                    newQ = generateMockQuestions(singleReq)[0];
+                }
+            } else {
+                newQ = generateMockQuestions(singleReq)[0];
+                newQ.question += " (Đã đổi lại)";
+            }
+
+            newQ.id = old.id;
+            questions[idx] = newQ;
+            renderQuestionsReview();
+        }
+
+        function addNewManualQuestion() {
+            const newId = questions.length + 1;
+            questions.push({
+                id: newId,
+                topic: currentTopics[0] || "Khác",
+                level: "Mức 1",
+                type: "Trắc nghiệm",
+                question: "Nhập nội dung câu hỏi mới ở đây...",
+                options: ["A. Lựa chọn 1", "B. Lựa chọn 2", "C. Lựa chọn 3", "D. Lựa chọn 4"],
+                answer: "A. Lựa chọn 1",
+                explanation: "Ghi chú đáp án",
+                approved: true
+            });
+            renderQuestionsReview();
+            updateApprovedCountBadge();
+        }
+
+        function approveAllQuestions() {
+            alert("Đã chốt danh sách câu hỏi thành công! Đang chuyển sang giao diện Xuất đề & Đáp án.");
+            switchTab('preview');
+        }
+
+        function updateApprovedCountBadge() {
+            document.getElementById('badge-approved-count').innerText = questions.length;
+        }
+
+        // --- PREVIEW & EXPORT LOGIC ---
+        function preparePrintDocs() {
+            // Update Headers
+            document.getElementById('printSchoolName').innerText = document.getElementById('schoolName').value || currentConfig.school;
+            document.getElementById('printExamPeriod').innerText = document.getElementById('examPeriod').value;
+            document.getElementById('printSubjectGrade').innerText = `NĂM HỌC 2026 - 2027 | MÔN: ${currentConfig.subject.toUpperCase()} - KHỐI LỚP ${currentConfig.grade}`;
+            document.getElementById('printDuration').innerText = `Thời gian làm bài: ${document.getElementById('examDuration').value} phút`;
+
+            // Populate Exam Questions Body
+            const examBody = document.getElementById('printExamBody');
+            examBody.innerHTML = '';
+
+            const tnQuestions = questions.filter(q => q.type === 'Trắc nghiệm');
+            const tlQuestions = questions.filter(q => q.type === 'Tự luận');
+
+            if(tnQuestions.length > 0) {
+                const part1 = document.createElement('div');
+                part1.className = "space-y-4";
+                part1.innerHTML = `<h4 class="font-bold border-b border-slate-400 pb-1 uppercase">PHẦN I. TRẮC NGHIỆM (${(tnQuestions.length * 0.5).toFixed(1)} điểm)</h4>`;
+                
+                tnQuestions.forEach((q, i) => {
+                    const item = document.createElement('div');
+                    item.className = "space-y-1 text-xs";
+                    item.innerHTML = `
+                        <p class="font-semibold">Câu ${i+1}: ${q.question}</p>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 pl-4">
+                            ${(q.options || []).map(opt => `<div>${opt}</div>`).join('')}
+                        </div>
+                    `;
+                    part1.appendChild(item);
+                });
+                examBody.appendChild(part1);
+            }
+
+            if(tlQuestions.length > 0) {
+                const part2 = document.createElement('div');
+                part2.className = "space-y-4 pt-4";
+                part2.innerHTML = `<h4 class="font-bold border-b border-slate-400 pb-1 uppercase">PHẦN II. TỰ LUẬN (${(10 - (tnQuestions.length * 0.5)).toFixed(1)} điểm)</h4>`;
+                
+                tlQuestions.forEach((q, i) => {
+                    const item = document.createElement('div');
+                    item.className = "space-y-2 text-xs";
+                    item.innerHTML = `
+                        <p class="font-semibold">Câu ${tnQuestions.length + i + 1}: ${q.question}</p>
+                        <div class="h-16 border-b border-dashed border-slate-300"></div>
+                    `;
+                    part2.appendChild(item);
+                });
+                examBody.appendChild(part2);
+            }
+
+            // Populate Answers Body
+            const ansBody = document.getElementById('printAnswersBody');
+            ansBody.innerHTML = '';
+            
+            questions.forEach((q, i) => {
+                const row = document.createElement('div');
+                row.className = "p-2 border-b border-slate-200 text-xs";
+                row.innerHTML = `
+                    <p class="font-bold">Câu ${i+1} (${q.type} - ${q.level}): <span class="text-emerald-700">${q.answer}</span></p>
+                    <p class="text-slate-600 italic">Hướng dẫn chấm: ${q.explanation || 'Chấm theo đúng ý trả lời của HS.'}</p>
+                `;
+                ansBody.appendChild(row);
+            });
+
+            // Populate Matrix Preview
+            const matrixBody = document.getElementById('printMatrixBody');
+            matrixBody.innerHTML = document.getElementById('matrixTableBody').outerHTML;
+        }
+
+        function switchPreviewSubTab(sub) {
+            document.querySelectorAll('.preview-subcontent').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`preview-${sub}-doc`).classList.remove('hidden');
+        }
+
+        function exportToWord() {
+            const content = document.getElementById('printableArea').innerHTML;
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
+                "xmlns:w='urn:schemas-microsoft-com:office:word' "+
+                "xmlns='http://www.w3.org/TR/REC-html40'>"+
+                "<head><meta charset='utf-8'><title>Export Word</title></head><body>";
+            const footer = "</body></html>";
+            const html = header + content + footer;
+
+            const blob = new Blob(['\ufeff', html], {
+                type: 'application/msword'
+            });
+            
+            const url = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(html);
+            const downloadLink = document.createElement("a");
+            document.body.appendChild(downloadLink);
+            downloadLink.href = url;
+            downloadLink.download = `De_Thi_${currentConfig.subject}_Lop${currentConfig.grade}.doc`;
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        // --- NAVIGATION & UI HELPERS ---
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-emerald-700');
+                btn.classList.add('text-white');
+            });
+            
+            const activeNav = document.getElementById(`nav-${tabName}`);
+            activeNav.classList.add('bg-white', 'text-emerald-700');
+            activeNav.classList.remove('text-white');
+
+            if(tabName === 'preview') {
+                preparePrintDocs();
+            }
+        }
+
+        function toggleApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            currentConfig.apiKey = key;
+            localStorage.setItem('gemini_api_key', key);
+            updateApiKeyStatusUI(!!key);
+            toggleApiKeyModal();
+        }
+
+        function updateApiKeyStatusUI(hasKey) {
+            const banner = document.getElementById('statusBanner');
+            const btnText = document.getElementById('apiKeyBtnText');
+
+            if(hasKey) {
+                banner.className = "mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between shadow-sm no-print";
+                banner.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-emerald-100 rounded-xl text-emerald-600">
+                            <i class="fa-solid fa-circle-check text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm">Đã kết nối Google Gemini API</h4>
+                            <p class="text-xs text-emerald-700">Hệ thống sẽ dùng AI thật để biên soạn câu hỏi bám sát chuẩn kiến thức GDPT 2018.</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleApiKeyModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">Đổi API Key</button>
+                `;
+                btnText.innerText = "API Key: Đã lưu";
+            }
+        }
+    </script>
+</body>
+</html>
